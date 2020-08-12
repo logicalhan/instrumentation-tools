@@ -20,9 +20,9 @@ import (
 	"context"
 	"sync"
 
+	"github.com/gdamore/tcell"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/gdamore/tcell"
 
 	"sigs.k8s.io/instrumentation-tools/promq/term"
 )
@@ -30,10 +30,11 @@ import (
 // oneRuneView is a view that writes a single rune ('*' by default) to
 // the top left corner of its position box.  It's threadsafe.
 type oneRuneView struct {
-	pos term.PositionBox
+	pos        term.PositionBox
 	targetRune rune
-	mu sync.Mutex
+	mu         sync.Mutex
 }
+
 func (v *oneRuneView) FlushTo(screen tcell.Screen) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -70,14 +71,15 @@ func waitForPollingStart(screen tcell.SimulationScreen, keys <-chan *tcell.Event
 		}
 	}).Should(BeTrue())
 }
+
 var _ = Describe("The overall Runner", func() {
 	var (
-		screen tcell.SimulationScreen
-		cancel context.CancelFunc
-		keys chan *tcell.EventKey
-		done chan struct{}
-		runner *term.Runner
-		mainView *oneRuneView = &oneRuneView{}
+		screen      tcell.SimulationScreen
+		cancel      context.CancelFunc
+		keys        chan *tcell.EventKey
+		done        chan struct{}
+		runner      *term.Runner
+		mainView    *oneRuneView = &oneRuneView{}
 		initialView term.View
 	)
 	BeforeEach(func() {
@@ -85,8 +87,6 @@ var _ = Describe("The overall Runner", func() {
 		initialView = mainView
 	})
 	JustBeforeEach(func() {
-		*mainView = oneRuneView{}
-
 		startedCh := make(chan struct{})
 		keys = make(chan *tcell.EventKey, 10 /* some buffer to avoid blocking */)
 		localKeys := keys // avoid racing on shutdown, etc
@@ -117,14 +117,16 @@ var _ = Describe("The overall Runner", func() {
 
 		// NB(directxman12): events are discarded until we start polling for them,
 		// so wait till we're started, send keys until we get a result, then proceed
-		<-startedCh
+		Eventually(startedCh).Should(BeClosed(), "should be safe to start polling eventually")
+		//<-startedCh
 		waitForPollingStart(screen, keys)
 
 		screen.SetSize(10, 10)
 	})
 	AfterEach(func() {
 		cancel()
-		<-done // wait till the runner finishes shutting down
+		//<-done // wait till the runner finishes shutting down
+		Eventually(done).Should(BeClosed(), "wait till the runner finishes shutting down")
 	})
 
 	Context("when receiving key events", func() {
